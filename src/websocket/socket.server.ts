@@ -2,7 +2,8 @@ import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import { config } from '../config';
 import logger from '../config/logger';
-import { authenticate } from '../middleware/auth';
+import jwt from 'jsonwebtoken';
+import prisma from '../config/database';
 
 let io: SocketIOServer;
 
@@ -24,11 +25,20 @@ export const initializeWebSocket = (httpServer: HTTPServer): SocketIOServer => {
         return next(new Error('Authentication token required'));
       }
 
-      // Verify token (reuse JWT logic)
-      // For simplicity, we'll skip full verification here
-      // In production, you should verify the JWT token
+      // Verify JWT token
+      const decoded = jwt.verify(token, config.jwt.secret) as any;
       
-      socket.data.userId = 'user-id-from-token';
+      // Verify user exists
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+      });
+
+      if (!user) {
+        return next(new Error('User not found'));
+      }
+
+      socket.data.userId = user.id;
+      socket.data.userRole = user.role;
       next();
     } catch (error) {
       next(new Error('Authentication failed'));
@@ -42,10 +52,13 @@ export const initializeWebSocket = (httpServer: HTTPServer): SocketIOServer => {
     const userId = socket.data.userId;
     socket.join(`user:${userId}`);
 
-    // Handle events
+    // Handle campaign subscriptions
     socket.on('join_campaign', (campaignId: string) => {
       socket.join(`campaign:${campaignId}`);
       logger.info(`User ${userId} joined campaign ${campaignId}`);
+      
+      // Send current campaign data to the newly joined client
+      sendCampaignUpdate(campaignId);
     });
 
     socket.on('leave_campaign', (campaignId: string) => {
@@ -53,8 +66,37 @@ export const initializeWebSocket = (httpServer: HTTPServer): SocketIOServer => {
       logger.info(`User ${userId} left campaign ${campaignId}`);
     });
 
+    // Handle organization subscriptions
+    socket.on('join_organization', (organizationId: string) => {
+      socket.join(`organization:${organizationId}`);
+      logger.info(`User ${userId} joined organization ${organizationId}`);
+    });
+
+    socket.on('leave_organization', (organizationId: string) => {
+      socket.leave(`organization:${organizationId}`);
+      logger.info(`User ${userId} left organization ${organizationId}`);
+    });
+
+    // Handle beneficiary subscriptions
+    socket.on('join_beneficiary', (beneficiaryId: string) => {
+      socket.join(`beneficiary:${beneficiaryId}`);
+      logger.info(`User ${userId} joined beneficiary ${beneficiaryId}`);
+    });
+
+    socket.on('leave_beneficiary', (beneficiaryId: string) => {
+      socket.leave(`beneficiary:${beneficiaryId}`);
+      logger.info(`User ${userId} left beneficiary ${beneficiaryId}`);
+    });
+
+    // Handle disconnect
     socket.on('disconnect', () => {
       logger.info(`Client disconnected: ${socket.id}`);
+    });
+
+    // Send welcome message
+    socket.emit('connected', {
+      message: 'Successfully connected to AidLink real-time updates',
+      userId,
     });
   });
 
@@ -83,8 +125,100 @@ export const broadcastToCampaign = (campaignId: string, event: string, data: any
   }
 };
 
+export const broadcastToOrganization = (organizationId: string, event: string, data: any): void => {
+  if (io) {
+    io.to(`organization:${organizationId}`).emit(event, data);
+  }
+};
+
+export const broadcastToBeneficiary = (beneficiaryId: string, event: string, data: any): void => {
+  if (io) {
+    io.to(`beneficiary:${beneficiaryId}`).emit(event, data);
+  }
+};
+
 export const broadcastToAll = (event: string, data: any): void => {
   if (io) {
     io.emit(event, data);
   }
+};
+
+// Real-time update functions
+export const sendCampaignUpdate = async (campaignId: string): Promise<void> => {
+  try {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: {
+        _count: {
+          select: {
+            donations: true,
+            beneficiaries: true,
+            distributions: true,
+          },
+        },
+      },
+    });
+
+    if (campaign) {
+      broadcastToCampaign(campaignId, 'campaign:updated', campaign);
+    }
+  } catch (error) {
+    logger.error('Error sending campaign update:', error);
+  }
+};
+
+export const sendDonationUpdate = async (donationId: string): Promise<void> => {
+  try {
+    const donation = await prisma.donation.findUnique({
+      where: { id: donationId },
+      include: {
+        campaign: true,
+        user: true,
+      },
+    });
+
+    if (donation) {
+      // Notify campaign subscribers
+      broadcastToCampaign(donation.campaignId, 'donation:created', donation);
+      
+      // Notify the donor
+      if (donation.userId) {
+        broadcastToUser(donation.userId, 'donation:created', donation);
+      }
+      
+      // Send updated campaign data
+      await sendCampaignUpdate(donation.campaignId);
+    }
+  } catch (error) {
+    logger.error('Error sending donation update:', error);
+  }
+};
+
+export const sendDistributionUpdate = async (distributionId: string): Promise<void> => {
+  try {
+    const distribution = await prisma.distribution.findUnique({
+      where: { id: distributionId },
+      include: {
+        campaign: true,
+        beneficiary: true,
+      },
+    });
+
+    if (distribution) {
+      // Notify campaign subscribers
+      broadcastToCampaign(distribution.campaignId, 'distribution:updated', distribution);
+      
+      // Notify the beneficiary
+      broadcastToBeneficiary(distribution.beneficiaryId, 'distribution:updated', distribution);
+      
+      // Send updated campaign data
+      await sendCampaignUpdate(distribution.campaignId);
+    }
+  } catch (error) {
+    logger.error('Error sending distribution update:', error);
+  }
+};
+
+export const sendNotification = (userId: string, notification: any): void => {
+  broadcastToUser(userId, 'notification:new', notification);
 };

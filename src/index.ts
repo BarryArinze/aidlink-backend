@@ -5,6 +5,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { createServer } from 'http';
 import { config } from './config';
 import logger from './config/logger';
 import { connectDatabase, disconnectDatabase } from './config/database';
@@ -19,8 +20,10 @@ import distributionRoutes from './routes/distribution.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminRoutes from './routes/admin.routes';
 import { sorobanIndexer } from './blockchain/soroban.indexer';
+import { initializeWebSocket } from './websocket/socket.server';
 
 const app: Application = express();
+const httpServer = createServer(app);
 
 // Security middleware
 app.use(helmet());
@@ -109,6 +112,9 @@ const startServer = async (): Promise<void> => {
     // Connect to Redis
     await connectRedis();
 
+    // Initialize WebSocket server
+    initializeWebSocket(httpServer);
+
     // Start blockchain indexer
     if (config.env === 'production' || config.env === 'development') {
       sorobanIndexer.start().catch((error) => {
@@ -116,10 +122,11 @@ const startServer = async (): Promise<void> => {
       });
     }
 
-    // Start Express server
-    app.listen(config.port, () => {
+    // Start HTTP server
+    httpServer.listen(config.port, () => {
       logger.info(`Server running on port ${config.port} in ${config.env} mode`);
       logger.info(`API documentation available at http://localhost:${config.port}/api/docs`);
+      logger.info(`WebSocket server initialized`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
