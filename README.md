@@ -32,6 +32,7 @@ Production-grade backend for AidLink - a blockchain-powered humanitarian aid pla
 - Fraud detection algorithms
 - Verification queue with BullMQ
 - Document verification
+- Risk score calculation
 
 ### 4. Blockchain Indexer
 - Soroban event listeners
@@ -44,6 +45,28 @@ Production-grade backend for AidLink - a blockchain-powered humanitarian aid pla
 - Real-time alerts (WebSockets)
 - Push notification support
 - Notification preferences
+
+### 6. Analytics & Reporting
+- Campaign analytics and performance metrics
+- Donor analytics and donation trends
+- Organization analytics
+- Platform-wide statistics
+- Custom report generation
+
+### 7. Advanced Search
+- Global search across all entities
+- Campaign search with filtering
+- Donation search with filtering
+- Beneficiary search with filtering
+- Date range and amount range filters
+- Sorting and pagination
+
+### 8. Admin Dashboard
+- Platform statistics overview
+- User management
+- Audit log viewing
+- System health monitoring
+- Real-time activity tracking
 
 ## Project Structure
 
@@ -127,6 +150,88 @@ npm start
 
 API documentation is available at `/api/docs` when the server is running.
 
+### API Endpoints
+
+#### Authentication (`/api/v1/auth`)
+- `POST /register` - Register a new user
+- `POST /login` - User login
+- `POST /wallet-auth` - Wallet-based authentication
+- `POST /refresh` - Refresh access token
+- `POST /logout` - User logout
+- `GET /profile` - Get user profile
+
+#### Campaigns (`/api/v1/campaigns`)
+- `POST /` - Create a new campaign
+- `GET /` - Get all campaigns
+- `GET /:id` - Get campaign by ID
+- `PUT /:id` - Update campaign
+- `DELETE /:id` - Delete campaign
+- `PATCH /:id/status` - Update campaign status
+- `POST /:id/milestones` - Add milestone to campaign
+
+#### Beneficiaries (`/api/v1/beneficiaries`)
+- `POST /` - Create a beneficiary profile
+- `GET /` - Get all beneficiaries
+- `GET /my-profile` - Get current user's beneficiary profile
+- `GET /:id` - Get beneficiary by ID
+- `PUT /:id` - Update beneficiary profile
+- `PATCH /:id/status` - Update beneficiary status
+- `POST /:id/risk-score` - Calculate risk score
+- `POST /:id/kyc` - Submit KYC documents
+- `PATCH /kyc/:submissionId/review` - Review KYC submission
+
+#### Donations (`/api/v1/donations`)
+- `POST /` - Create a new donation
+- `GET /` - Get all donations
+- `GET /my-donations` - Get current user's donations
+- `GET /campaign/:campaignId` - Get donations for a campaign
+- `GET /:id` - Get donation by ID
+- `POST /:id/confirm` - Confirm donation with blockchain
+- `POST /:id/refund` - Refund a donation
+
+#### Distributions (`/api/v1/distributions`)
+- `POST /` - Create a new distribution
+- `GET /` - Get all distributions
+- `GET /campaign/:campaignId` - Get distributions for a campaign
+- `GET /beneficiary/:beneficiaryId` - Get distributions for a beneficiary
+- `POST /:id/confirm` - Confirm distribution with blockchain
+- `PATCH /:id/status` - Update distribution status
+- `POST /:id/proof` - Add proof document
+
+#### Notifications (`/api/v1/notifications`)
+- `POST /` - Create a notification
+- `GET /` - Get user notifications
+- `GET /unread-count` - Get unread notification count
+- `PATCH /:id/read` - Mark notification as read
+- `PATCH /read-all` - Mark all notifications as read
+- `DELETE /:id` - Delete notification
+- `POST /donation` - Send donation notification
+- `POST /campaign-update` - Send campaign update notification
+- `POST /distribution` - Send distribution notification
+
+#### Admin (`/api/v1/admin`)
+- `GET /dashboard` - Get dashboard statistics
+- `GET /activity` - Get recent activity
+- `GET /users` - Get all users
+- `PATCH /users/:id/status` - Update user status
+- `PATCH /users/:id/role` - Update user role
+- `GET /audit-logs` - Get audit logs
+- `GET /health` - Get system health
+
+#### Analytics (`/api/v1/analytics`)
+- `GET /campaign/:campaignId` - Get campaign analytics
+- `GET /donor` - Get donor analytics
+- `GET /organization/:organizationId` - Get organization analytics
+- `GET /platform` - Get platform analytics
+- `POST /report/:reportType` - Generate a report
+
+#### Search (`/api/v1/search`)
+- `GET /campaigns` - Search campaigns
+- `GET /donations` - Search donations
+- `GET /beneficiaries` - Search beneficiaries
+- `GET /global` - Global search
+- `GET /advanced` - Advanced search with filters
+
 ## Testing
 
 ```bash
@@ -167,11 +272,14 @@ See `.env.example` for all required environment variables.
 
 - Helmet.js for security headers
 - CORS configuration
-- Rate limiting
+- Global rate limiting
+- Per-endpoint rate limiting (donations, campaigns, search, analytics, distributions, notifications)
 - Request validation with Zod
 - JWT authentication
 - Audit logging
+- Request logging middleware
 - Secure environment management
+- WebSocket authentication
 
 ## Monitoring
 
