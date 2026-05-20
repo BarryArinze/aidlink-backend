@@ -14,6 +14,7 @@ import { errorHandler, notFoundHandler } from './middleware/error';
 import authRoutes from './routes/auth.routes';
 import campaignRoutes from './routes/campaign.routes';
 import beneficiaryRoutes from './routes/beneficiary.routes';
+import donationRoutes from './routes/donation.routes';
 import { sorobanIndexer } from './blockchain/soroban.indexer';
 
 const app: Application = express();
@@ -56,6 +57,7 @@ app.get('/health', (req, res) => {
 app.use(`/api/${config.apiVersion}/auth`, authRoutes);
 app.use(`/api/${config.apiVersion}/campaigns`, campaignRoutes);
 app.use(`/api/${config.apiVersion}/beneficiaries`, beneficiaryRoutes);
+app.use(`/api/${config.apiVersion}/donations`, donationRoutes);
 
 // Swagger documentation
 const swaggerOptions = {
