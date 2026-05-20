@@ -19,6 +19,7 @@ import donationRoutes from './routes/donation.routes';
 import distributionRoutes from './routes/distribution.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminRoutes from './routes/admin.routes';
+import analyticsRoutes from './routes/analytics.routes';
 import { sorobanIndexer } from './blockchain/soroban.indexer';
 import { initializeWebSocket } from './websocket/socket.server';
 
@@ -67,6 +68,7 @@ app.use(`/api/${config.apiVersion}/donations`, donationRoutes);
 app.use(`/api/${config.apiVersion}/distributions`, distributionRoutes);
 app.use(`/api/${config.apiVersion}/notifications`, notificationRoutes);
 app.use(`/api/${config.apiVersion}/admin`, adminRoutes);
+app.use(`/api/${config.apiVersion}/analytics`, analyticsRoutes);
 
 // Swagger documentation
 const swaggerOptions = {
